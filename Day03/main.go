@@ -8,9 +8,10 @@ import (
 	"strconv"
 )
 
+
 func main() {
 
-	file, err := os.Open("test.txt")
+	file, err := os.Open("data.txt")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -41,6 +42,7 @@ func checkMemory(text string) int {
 	result := 0
 
 	matches := re.FindAllString(text, -1)
+	
 
 	for _, match := range matches {
 		reNum := regexp.MustCompile(`\d+`)
@@ -59,69 +61,40 @@ func checkMemory(text string) int {
 }
 
 func checkMemoryWithCondition(text string) int {
-	// We want to have the index of all the match mul(), do(), don't(), and have some switch.
-	// Since the regex find exactly the index of "do()" and "don't()" string,
-	// we will extract the first index into a list.
-	fmt.Println(text)
-
-	reDo := regexp.MustCompile(`do\(\)`)
-	doMatches := reDo.FindAllStringIndex(text, -1)
-	doMatchIndices := []int{}
-	for _, value := range doMatches {
-		doMatchIndices = append(doMatchIndices, value[0])
-	}
-	fmt.Println("Do match indices", doMatchIndices)
-
-	reDont := regexp.MustCompile(`don't\(\)`)
-	dontMatches := reDont.FindAllStringIndex(text, -1)
-	dontMatchIndices := []int{}
-	for _, value := range dontMatches {
-		dontMatchIndices = append(dontMatchIndices, value[0])
-	}
-	fmt.Println("Don't match indices", dontMatchIndices)
-
-	reMul := regexp.MustCompile(`mul\(\d+,\d+\)`)
-	mulMatches := reMul.FindAllStringIndex(text, -1)
+	// The elegant is in the fact that we can check the combine regex, and alternate the execution accordingly
+	// Inspired by https://www.reddit.com/r/adventofcode/comments/1h5obsr/2024_day_3_regular_expressions_go_brrr/
+	// If your code isn't working, try to make the input file on the same line
+	// My original code works, but it's very ugly, you can see it in the commit history
+	re := regexp.MustCompile(`mul\(\d+,\d+\)|do\(\)|don't\(\)`)
+	mulRe := regexp.MustCompile(`mul\(\d+,\d+\)`)
+	doRe := regexp.MustCompile(`do\(\)`)
+	dontRe := regexp.MustCompile(`don't\(\)`)
+	execute := true
 	result := 0
-	for _, value := range mulMatches {
-		if checkExecute(value[0], doMatchIndices, dontMatchIndices) {
-			reNum := regexp.MustCompile(`\d+`)
-			executionText := text[value[0]: value[1]]
-			numberStrings := reNum.FindAllString(executionText, -1)
-			multiplication_result := 1
 
-			for _, num := range numberStrings {
-				number, err := strconv.Atoi(num)
-				check(err)
-				multiplication_result *= number
+	matches := re.FindAllStringIndex(text, -1)
+	for _, match := range matches {
+		substr := text[match[0]:match[1]]
+		if doRe.MatchString(substr) {
+			execute = true
+		} else if dontRe.MatchString(substr) {
+			execute = false
+		} else if mulRe.MatchString(substr) {
+			if execute {
+				reNum := regexp.MustCompile(`\d+`)
+				numberStrings := reNum.FindAllString(substr, -1)
+				multiplication_result := 1
+		
+				for _, num := range numberStrings {
+					number, err := strconv.Atoi(num)
+					check(err)
+					multiplication_result *= number
+				}
+		
+				result += multiplication_result
 			}
-
-			result += multiplication_result
 		}
 	}
 
 	return result
-}
-
-func checkExecute(mulIndex int, doIndices []int, dontIndices []int) bool {
-	nearestDo := largestSmallerThan(doIndices, mulIndex)
-	nearestDont := largestSmallerThan(dontIndices, mulIndex)
-	//  If there is no don't before it, just execute
-	if nearestDont == -1 {
-		return true
-	} else if nearestDont > nearestDo { // We just don't execute if there's a don't right before us
-		return false
-	} else {
-		return true
-	}
-}
-
-func largestSmallerThan(numbers []int, target int) int {
-	largest := -1
-	for _, num := range numbers {
-		if num < target && num > largest {
-			largest = num
-		}
-	}
-	return largest
 }
